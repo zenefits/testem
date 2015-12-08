@@ -70,7 +70,7 @@ function qunitAdapter(socket){
             }
 
         }
-
+        emit('tests-assert', currentTest);
     })
     QUnit.testStart( function(params){
         currentTest = {
@@ -85,7 +85,7 @@ function qunitAdapter(socket){
         currentTest.passed = params.passed
         currentTest.total = params.total
         currentTest.runDuration = params.runtime
-        
+
         results.total++
         if (currentTest.failed > 0)
             results.failed++
