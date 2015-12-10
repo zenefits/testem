@@ -75,6 +75,8 @@ var addListener = window.addEventListener ?
   function(obj, evt, cb){ obj.addEventListener(evt, cb, false) } :
   function(obj, evt, cb){ obj.attachEvent('on' + evt, cb) }
 
+var resumeCb;
+
 function init(){
   socket = io.connect({ reconnectionDelayMax: 1000, randomizationFactor: 0 })
   var id = getId()
@@ -92,10 +94,16 @@ function init(){
   socket.on('start-tests', startTests)
   addListener(window, 'load', initUI)
 
+  socket.on('test-resume', function() {
+    socket.emit('test-resume-ack');
+    resumeCb();
+  });
+
   while (parent.Testem.emitConnectionQueue.length > 0) {
     TestemConnection.emit.apply(this, parent.Testem.emitConnectionQueue.shift());
   }
   parent.Testem.emitConnection = TestemConnection.emit;
+  parent.Testem.pauseTest = TestemConnection.pauseTest;
 }
 
 window.TestemConnection = {
@@ -107,6 +115,12 @@ window.TestemConnection = {
       setTimeout(function() {
         socket.emit.apply(socket, decycled);
       }, 0);
+    }, 0);
+  },
+  pauseTest: function(cb) {
+    resumeCb = cb;
+    setTimeout(function() {
+      socket.emit('test-pause');
     }, 0);
   }
 }
