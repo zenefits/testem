@@ -103,16 +103,21 @@ function init(){
   });
 
   socket.on('start-next-test', function(data) {
+    console.log('ws >>> start-next-test', JSON.stringify(data));
     var newHref = parent.location.href.replace(/(&|\?)filter=\S+?(&|$)/, '$1filter=' + encodeURIComponent(data.test_filter) + '$2');
 
-    if ( data.data ) {
-      newHref = newHref.replace(/(&|\?)data=\S+?(&|$)/, '$1data=' + encodeURIComponent(JSON.stringify(data.data)) + '$2');
+    if ( data.dataStr ) {
+      if ( newHref.indexOf('data=') === -1 ) {
+        newHref = newHref + '&data=' + data.dataStr;
+      } else {
+        newHref = newHref.replace(/(&|\?)data=\S+?(&|$)/, '$1data=' + data.dataStr + '$2');
+      }
     }
 
-    socket.emit('start-next-test-ack');
+    socket.emit('start-next-test-ack', {newHref:newHref});
     setTimeout(function() {
       parent.location.href = newHref;
-    }, 1);
+    }, 100);
   });
 
   while (parent.Testem.emitConnectionQueue.length > 0) {
