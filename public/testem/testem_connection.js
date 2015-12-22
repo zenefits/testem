@@ -86,6 +86,9 @@ function init(){
   socket.on('connect', function(){
     connectStatus = 'connected'
     syncConnectStatus()
+    setInterval(function() {
+        socket.emit('ping');
+    }, 1000);
   })
   socket.on('disconnect', function(){
     connectStatus = 'disconnected'
@@ -97,6 +100,19 @@ function init(){
   socket.on('test-resume', function() {
     socket.emit('test-resume-ack');
     resumeCb();
+  });
+
+  socket.on('start-next-test', function(data) {
+    var newHref = parent.location.href.replace(/(&|\?)filter=\S+?(&|$)/, '$1filter=' + encodeURIComponent(data.test_filter) + '$2');
+
+    if ( data.data ) {
+      newHref = newHref.replace(/(&|\?)data=\S+?(&|$)/, '$1data=' + encodeURIComponent(JSON.stringify(data.data)) + '$2');
+    }
+
+    socket.emit('start-next-test-ack');
+    setTimeout(function() {
+      parent.location.href = newHref;
+    }, 1);
   });
 
   while (parent.Testem.emitConnectionQueue.length > 0) {
