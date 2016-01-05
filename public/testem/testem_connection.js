@@ -106,13 +106,16 @@ function init(){
     console.log('ws >>> start-next-test', JSON.stringify(data));
     var newHref = parent.location.href.replace(/(&|\?)filter=\S+?(&|$)/, '$1filter=' + encodeURIComponent(data.test_filter) + '$2');
 
-    if ( data.dataStr ) {
-      if ( newHref.indexOf('data=') === -1 ) {
-        newHref = newHref + '&data=' + data.dataStr;
-      } else {
-        newHref = newHref.replace(/(&|\?)data=\S+?(&|$)/, '$1data=' + data.dataStr + '$2');
+    ['data', 'time'].forEach(function(key) {
+      var val = data[key];
+      if ( val ) {
+        if ( newHref.indexOf(key + '=') === -1 ) {
+          newHref = newHref + '&' + key + '=' + val;
+        } else {
+          newHref = newHref.replace(new RegExp('(&|\\?)' + key + '=\\S+?(&|$)'), '$1' + key + '=' + val + '$2');
+        }
       }
-    }
+    });
 
     socket.emit('start-next-test-ack', {newHref:newHref});
     setTimeout(function() {
