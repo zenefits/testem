@@ -87,7 +87,9 @@ function init(){
     connectStatus = 'connected'
     syncConnectStatus()
     setInterval(function() {
-        socket.emit('ping');
+        socket.emit('ping', '', function() {
+          console.log('ping ack');
+        });
     }, 1000);
   })
   socket.on('disconnect', function(){
@@ -102,7 +104,11 @@ function init(){
     resumeCb();
   });
 
-  socket.on('start-next-test', function(data) {
+  socket.on('server-ping', function(data, fn) {
+    fn();
+  });
+
+  socket.on('start-next-test', function(data, fn) {
     console.log('ws >>> start-next-test', JSON.stringify(data));
     var newHref = parent.location.href.replace(/(&|\?)filter=\S+?(&|$)/, '$1filter=' + encodeURIComponent(data.test_filter) + '$2');
 
@@ -117,10 +123,14 @@ function init(){
       }
     });
 
-    socket.emit('start-next-test-ack', {newHref:newHref});
-    setTimeout(function() {
-      parent.location.href = newHref;
-    }, 100);
+    fn();
+
+    socket.emit('start-next-test-ack', {newHref:newHref}, function() {
+      setTimeout(function() {
+        parent.location.href = newHref;
+      }, 100);
+    });
+
   });
 
   while (parent.Testem.emitConnectionQueue.length > 0) {
