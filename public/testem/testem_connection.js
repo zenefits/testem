@@ -75,6 +75,8 @@ var addListener = window.addEventListener ?
   function(obj, evt, cb){ obj.addEventListener(evt, cb, false) } :
   function(obj, evt, cb){ obj.attachEvent('on' + evt, cb) }
 
+var resumeCb;
+
 function init(){
   socket = io.connect({ reconnectionDelayMax: 1000, randomizationFactor: 0 })
   var id = getId()
@@ -84,6 +86,11 @@ function init(){
   socket.on('connect', function(){
     connectStatus = 'connected'
     syncConnectStatus()
+    setInterval(function() {
+        socket.emit('ping', '', function() {
+          console.log('ping ack');
+        });
+    }, 1000);
   })
   socket.on('disconnect', function(){
     connectStatus = 'disconnected'
@@ -92,10 +99,45 @@ function init(){
   socket.on('start-tests', startTests)
   addListener(window, 'load', initUI)
 
+  socket.on('test-resume', function() {
+    socket.emit('test-resume-ack');
+    resumeCb();
+  });
+
+  socket.on('server-ping', function(data, fn) {
+    fn();
+  });
+
+  socket.on('start-next-test', function(data, fn) {
+    console.log('ws >>> start-next-test', JSON.stringify(data));
+    var newHref = parent.location.href.replace(/(&|\?)filter=\S+?(&|$)/, '$1filter=' + encodeURIComponent(data.test_filter) + '$2');
+
+    ['data', 'time'].forEach(function(key) {
+      var val = data[key];
+      if ( val ) {
+        if ( newHref.indexOf(key + '=') === -1 ) {
+          newHref = newHref + '&' + key + '=' + val;
+        } else {
+          newHref = newHref.replace(new RegExp('(&|\\?)' + key + '=\\S+?(&|$)'), '$1' + key + '=' + val + '$2');
+        }
+      }
+    });
+
+    fn();
+
+    socket.emit('start-next-test-ack', {newHref:newHref}, function() {
+      setTimeout(function() {
+        parent.location.href = newHref;
+      }, 100);
+    });
+
+  });
+
   while (parent.Testem.emitConnectionQueue.length > 0) {
     TestemConnection.emit.apply(this, parent.Testem.emitConnectionQueue.shift());
   }
   parent.Testem.emitConnection = TestemConnection.emit;
+  parent.Testem.pauseTest = TestemConnection.pauseTest;
 }
 
 window.TestemConnection = {
@@ -107,6 +149,12 @@ window.TestemConnection = {
       setTimeout(function() {
         socket.emit.apply(socket, decycled);
       }, 0);
+    }, 0);
+  },
+  pauseTest: function(cb) {
+    resumeCb = cb;
+    setTimeout(function() {
+      socket.emit('test-pause');
     }, 0);
   }
 }
